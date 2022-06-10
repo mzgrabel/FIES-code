@@ -4,11 +4,11 @@ R code was run on version 1.3.1093
 Python code was run on Spyder IDE 5.1.5 Python version 3.8.12 
 
 R code preprocesses the data 
--uploads raw data
--changes gender to numeric sex variable
--changes birthcohort variable to numeric for each of the cohorts 1 - <1981; 2 - 1981-1988; 3 - 1989-1994; 4 - 1995-1998; 5 - 1999-2005
--looks only for complete cases
--exports to excel file
+- uploads raw data
+- changes gender to numeric sex variable
+- changes birthcohort variable to numeric for each of the cohorts 1 - <1981; 2 - 1981-1988; 3 - 1989-1994; 4 - 1995-1998; 5 - 1999-2005
+- looks only for complete cases
+- exports to excel file
 
 Python Code runs the models
 - uploads the excel file and drops the non numeric date variables
@@ -44,4 +44,3 @@ evaluation and AUC for logisitic regression, random forest, and KNN
 - create a new prediction on the model 
 - find best cut off value and hard prediction
 - evaulate that hard prediction vs the true values of that data
-- 
