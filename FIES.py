@@ -289,6 +289,39 @@ print("Precision:",metrics.precision_score(y_test, y_pred))
 print("Recall:",metrics.recall_score(y_test, y_pred))
 
 
+# Figure 1A
+
+def plotmetrics(model, y_pred):
+    if model == ann:
+        y_pred_proba = y_pred[::,1]
+    elif model == RNN:
+        y_pred_proba = y_pred[:,0][:][:][:]
+    else:
+        y_pred_proba = model.predict_proba(X_test)[::,1] # get probabilities
+
+    fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
+    return fpr, tpr
+
+fprlr, tprlr = plotmetrics(lr, y_pred_rf)
+fprrf, tprrf = plotmetrics(forest, y_pred_rf)
+fprk, tprk = plotmetrics(knn, y_pred_knn)
+fpra, tpra = plotmetrics(ann, y_pred_ann)
+fprr, tprr = plotmetrics(RNN, preds)
+
+
+plt.plot(fprlr, tprlr, color = 'red', label = 'Logistic Regression')
+plt.plot(fprrf, tprrf, color = 'green', label = 'Random Forest')
+plt.plot(fprk, tprk, color = 'orange', label = 'KNN')
+plt.plot(fpra, tpra, color = 'blue', label = 'ANN')
+plt.plot(fprr, tprr, color = 'black', label = 'RNN')
+
+plt.xlabel('1 - Specificity')
+plt.ylabel('Sensitivity')
+plt.title('ROC Curves')
+plt.legend()
+plt.show()
+
+
 # External Cross Validation ---------------------------------------------------
 from sklearn.model_selection import cross_val_predict
 
@@ -371,3 +404,58 @@ for i in range(len(yre[:,0])):
         y_pred[i] = 0
         
 CrossValExt(y_pred)
+
+
+# Figure 1B
+
+def plotmetricsex(pred):
+    fpr, tpr, _ = metrics.roc_curve(yB,  pred)
+    return fpr, tpr
+
+fprlre, tprlre = plotmetricsex(le)
+fprrfe, tprrfe = plotmetricsex(fe)
+fprke, tprke = plotmetricsex(ke)
+fprae, tprae = plotmetricsex(y_pred_a)
+fprre, tprre = plotmetricsex(y_pred_r)
+
+plt.plot(fprlre, tprlre, color = 'red', label = 'Logistic Regression')
+plt.plot(fprrfe, tprrfe, color = 'green', label = 'Random Forest')
+plt.plot(fprke, tprke, color = 'orange', label = 'KNN')
+plt.plot(fprae, tprae, color = 'blue', label = 'ANN')
+plt.plot(fprre, tprre, color = 'black', label = 'RNN')
+
+plt.xlabel('1 - Specificity')
+plt.ylabel('Sensitivity')
+plt.title('ROC Curves')
+plt.legend()
+plt.show()
+
+
+
+# combined Figures
+
+plt.subplot(1,2,1)
+plt.plot(fprlr, tprlr, color = 'red', label = 'Logistic Regression')
+plt.plot(fprrf, tprrf, color = 'green', label = 'Random Forest')
+plt.plot(fprk, tprk, color = 'orange', label = 'KNN')
+plt.plot(fpra, tpra, color = 'blue', label = 'ANN')
+plt.plot(fprr, tprr, color = 'black', label = 'RNN')
+
+plt.set_xlabel('1 - Specificity')
+plt.set_ylabel('Sensitivity')
+plt.set_title('ROC Curves')
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(fprlre, tprlre, color = 'red', label = 'Logistic Regression')
+plt.plot(fprrfe, tprrfe, color = 'green', label = 'Random Forest')
+plt.plot(fprke, tprke, color = 'orange', label = 'KNN')
+plt.plot(fprae, tprae, color = 'blue', label = 'ANN')
+plt.plot(fprre, tprre, color = 'black', label = 'RNN')
+
+plt.xlabel('1 - Specificity')
+plt.ylabel('Sensitivity')
+plt.title('ROC Curves')
+plt.legend()
+plt.show()
+
