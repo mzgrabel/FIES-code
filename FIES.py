@@ -11,10 +11,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 import seaborn as sns
 import tensorflow as tf
+import random
 
+random.seed(10)
 # Data ------------------------------------------------------------------------
 FIES = pd.read_excel(r'C:/Users/mzgra/Documents/Research2022/FIES.xlsx')
-FIES = FIES.drop(columns=["CareEpi_EndDt", "CareEpi_StartDt", "encounterdate"])
+#FIES = FIES.drop(columns=["CareEpi_EndDt", "CareEpi_StartDt", "encounterdate", "year", "zcta", "FEV1_pct_predicted", "alive", "LT", "tSince_BL", "SESlow_ever", "PA_ever", "isOnEnzymes_ever", "Vx770_ever", "Vx809_ever", "smoking_ever", "smoking_household_ever", "second_smoke_ever", "mrsa_ever" ])
 X = FIES.loc[:, FIES.columns != 'FIES_final']
 y = FIES['FIES_final']
 
@@ -40,9 +42,10 @@ for i in range(21616):
         D = D.append(FIES[t])        
 
 
+C = C.drop(columns=['eDWID'])
 X_train = C.loc[:, C.columns != 'FIES_final']
 y_train = C['FIES_final']
-
+D = D.drop(columns=['eDWID'])
 X_test = D.loc[:, D.columns != 'FIES_final']
 y_test = D['FIES_final']
 
@@ -133,6 +136,12 @@ def ANNEvaluate(model, y_pred):
 
     y_pred = np.argmax(y_pred, axis = 1)
         
+    fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
+    i = np.arange(len(tpr)) # index for df
+    roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
+    roc.iloc[(roc.tf-0).abs().argsort()[:1]]['thresholds']
+    
+
     cm = metrics.confusion_matrix(y_test, y_pred)
     cm        
     
@@ -161,6 +170,8 @@ def ANNEvaluate(model, y_pred):
     print("Precision:",metrics.precision_score(y_test, y_pred))
     print("Recall:",metrics.recall_score(y_test, y_pred))
     
+
+
 # -----------------------------------------------------------------------------
 
 
@@ -178,12 +189,14 @@ forest.fit(X_train, y_train)
 y_pred_rf = forest.predict(X_test)
 Evaluate(forest, y_pred_rf) # call evaluate function on these predictions
 
+
 # KNN
 knn = KNeighborsClassifier(n_neighbors = 2, p = 2, metric = 'minkowski')
 knn.fit(X_train, y_train)
 
 y_pred_knn = knn.predict(X_test)
 Evaluate(knn, y_pred_knn) # call evaluate function on these predictions
+
 
 # ANN
 y_train_onehot = tf.keras.utils.to_categorical(y_train)
@@ -198,9 +211,9 @@ sgd_optimizer = tf.keras.optimizers.SGD(lr = 0.001, decay = 1e-7, momentum = 0.9
 ann.compile(optimizer = sgd_optimizer, loss = 'categorical_crossentropy')
 
 ann.fit(X_train, y_train_onehot, batch_size = 64, epochs = 25, verbose=1, validation_split = 0.1)
-y_pred = ann.predict(X_test, verbose = 0)
+y_pred_ann = ann.predict(X_test, verbose = 0)
 
-ANNEvaluate(ann, y_pred) # call evaluate function on these predictions
+ANNEvaluate(ann, y_pred_ann) # call evaluate function on these predictions
 
 # RNN -------------------------------------------------------------------------
 
@@ -208,7 +221,7 @@ X_train = X_train.values.reshape(X_train.shape[0], X_train.shape[1], 1) # reshap
 
 RNN = Sequential()
         
-RNN.add(LSTM(units = 50, return_sequences = True, input_shape = (50, 1))) 
+RNN.add(LSTM(units = 50, return_sequences = True, input_shape = (34, 1))) 
 RNN.add(Dropout(0.2))
 
 RNN.add(LSTM(units = 50, return_sequences=True))
@@ -238,7 +251,7 @@ roc.iloc[(roc.tf-0).abs().argsort()[:1]]['thresholds']
 
 y_pred = np.zeros(len(preds))
 for i in range(len(preds)):
-    if preds[[i]][0][0] >= 0.784489: # may have to change the numeric value based on the threshold value above
+    if preds[[i]][0][0] >= 0.728641: # may have to change the numeric value based on the threshold value above
         y_pred[i] = 1
     else:
         y_pred[i] = 0
@@ -325,6 +338,7 @@ plt.show()
 # External Cross Validation ---------------------------------------------------
 from sklearn.model_selection import cross_val_predict
 
+B = B.drop(columns=['eDWID'])
 # Use set B for external cross validation
 XB = B.loc[:, B.columns != 'FIES_final']
 yB = B['FIES_final']
@@ -377,14 +391,14 @@ i = np.arange(len(tpr)) # index for df
 roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
 roc.iloc[(roc.tf-0).abs().argsort()[:1]]
 
-y_pred = np.zeros(len(yae[:,0]))
+y_pred_a = np.zeros(len(yae[:,0]))
 for i in range(len(yae[:,0])):
-    if yae[:,0][i] >= 0.213072: # may have to adjust value based on above threshold value
-        y_pred[i] = 1
+    if yae[:,0][i] >= 0.208169: # may have to adjust value based on above threshold value
+        y_pred_a[i] = 1
     else:
-        y_pred[i] = 0
+        y_pred_a[i] = 0
         
-CrossValExt(y_pred)
+CrossValExt(y_pred_a)
 
 # RNN
 
@@ -396,14 +410,15 @@ i = np.arange(len(tpr)) # index for df
 roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
 roc.iloc[(roc.tf-0).abs().argsort()[:1]]
 
-y_pred = np.zeros(len(yre[:,0]))
+y_pred_r = np.zeros(len(yre[:,0]))
 for i in range(len(yre[:,0])):
-    if yre[:,0][i] >= 0.7891: # may have to adjust value based on above threshold value
-        y_pred[i] = 1
+    if yre[:,0][i] >= 0.810198: # may have to adjust value based on above threshold value
+        y_pred_r[i] = 1
     else:
-        y_pred[i] = 0
+        y_pred_r[i] = 0
         
-CrossValExt(y_pred)
+CrossValExt(y_pred_r)
+
 
 
 # Figure 1B
@@ -441,9 +456,9 @@ plt.plot(fprk, tprk, color = 'orange', label = 'KNN')
 plt.plot(fpra, tpra, color = 'blue', label = 'ANN')
 plt.plot(fprr, tprr, color = 'black', label = 'RNN')
 
-plt.set_xlabel('1 - Specificity')
-plt.set_ylabel('Sensitivity')
-plt.set_title('ROC Curves')
+plt.xlabel('1 - Specificity')
+plt.ylabel('Sensitivity')
+plt.title('ROC Curves')
 plt.legend()
 
 plt.subplot(1,2,2)
