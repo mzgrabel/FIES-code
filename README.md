@@ -5,13 +5,15 @@ Python code was run on Spyder IDE 5.1.5 Python version 3.8.12
 
 R code preprocesses the data 
 - uploads raw data
+- removes unnecessary variables
+- looks only for complete cases
 - changes gender to numeric sex variable
 - changes birthcohort variable to numeric for each of the cohorts 1 - <1981; 2 - 1981-1988; 3 - 1989-1994; 4 - 1995-1998; 5 - 1999-2005
-- looks only for complete cases
+
 - exports to excel file
 
 Python Code runs the models
-- uploads the excel file and drops the non numeric date variables
+- uploads the excel file 
 - uploads the data split used in Szczesniak et al. (2019)
 - matches the split data IDs to the the processed data into groups B, C, D one for validation, training, and testing 
 - Sets the training and test data 
