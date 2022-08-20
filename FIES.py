@@ -41,6 +41,72 @@ for i in range(21616):
         t = FIES['eDWID'] == split['D_masked'][i]
         D = D.append(FIES[t])        
 
+# Table 2
+A = pd.concat([C,D]) # Development Cohort
+len(np.unique(A['eDWID'])) # unique patients
+len(np.unique(B['eDWID']))
+
+len(split['A_develop'])
+21616 - 21101 # number of patients in development set - total found
+
+sum(pd.notna(split['B_validation']))
+5405 - 5274 # number of patients in validation set - total found
+
+# Development
+# Sex
+len(np.unique(A['eDWID'][A['Sex'] == 0])) # M
+len(np.unique(A['eDWID'][A['Sex'] == 1])) # F
+
+# Age
+m = A.groupby('eDWID').mean() # get mean age of visits
+np.mean(m['encounterage']) # get mean of all ages of patients
+max(m['encounterage'])
+min(m['encounterage'])
+
+# Number of Visits
+n = A.groupby('eDWID').mean('numVisityr')
+np.mean(n['numVisityr'])
+
+# FIES events
+f = A.groupby('eDWID').sum('FIES_final')
+np.mean(f['FIES_final'])
+
+# Cohorts
+len(np.unique(A['eDWID'][A['Birth_cohort'] == 1])) # < 1981
+len(np.unique(A['eDWID'][A['Birth_cohort'] == 2])) #  1981 - 1988
+len(np.unique(A['eDWID'][A['Birth_cohort'] == 3])) #  1989-1994
+len(np.unique(A['eDWID'][A['Birth_cohort'] == 4])) #  1995-1998
+len(np.unique(A['eDWID'][A['Birth_cohort'] == 5])) #  1999-2005
+len(np.unique(A['eDWID'][A['Birth_cohort'] == 6])) # > 2005
+
+# Validation
+# Sex
+len(np.unique(B['eDWID'][B['Sex'] == 0])) # M
+len(np.unique(B['eDWID'][B['Sex'] == 1])) # F
+
+# Age
+mm = B.groupby('eDWID').mean() # get mean age of visits
+np.mean(mm['encounterage']) # get mean of all ages of patients
+max(mm['encounterage'])
+min(mm['encounterage'])
+
+# Number of Visits
+nn = B.groupby('eDWID').mean('numVisityr')
+np.mean(nn['numVisityr'])
+
+# FIES events
+ff = B.groupby('eDWID').sum('FIES_final')
+np.mean(ff['FIES_final'])
+
+# Cohorts
+len(np.unique(B['eDWID'][B['Birth_cohort'] == 1])) # < 1981
+len(np.unique(B['eDWID'][B['Birth_cohort'] == 2])) #  1981 - 1988
+len(np.unique(B['eDWID'][B['Birth_cohort'] == 3])) #  1989-1994
+len(np.unique(B['eDWID'][B['Birth_cohort'] == 4])) #  1995-1998
+len(np.unique(B['eDWID'][B['Birth_cohort'] == 5])) #  1999-2005
+len(np.unique(B['eDWID'][B['Birth_cohort'] == 6])) # > 2005
+
+
 
 C = C.drop(columns=['eDWID'])
 X_train = C.loc[:, C.columns != 'FIES_final']
@@ -251,7 +317,7 @@ roc.iloc[(roc.tf-0).abs().argsort()[:1]]['thresholds']
 
 y_pred = np.zeros(len(preds))
 for i in range(len(preds)):
-    if preds[[i]][0][0] >= 0.728641: # may have to change the numeric value based on the threshold value above
+    if preds[[i]][0][0] >= 0.628183: # may have to change the numeric value based on the threshold value above
         y_pred[i] = 1
     else:
         y_pred[i] = 0
@@ -393,7 +459,7 @@ roc.iloc[(roc.tf-0).abs().argsort()[:1]]
 
 y_pred_a = np.zeros(len(yae[:,0]))
 for i in range(len(yae[:,0])):
-    if yae[:,0][i] >= 0.208169: # may have to adjust value based on above threshold value
+    if yae[:,0][i] >= 0.343799: # may have to adjust value based on above threshold value
         y_pred_a[i] = 1
     else:
         y_pred_a[i] = 0
@@ -412,13 +478,12 @@ roc.iloc[(roc.tf-0).abs().argsort()[:1]]
 
 y_pred_r = np.zeros(len(yre[:,0]))
 for i in range(len(yre[:,0])):
-    if yre[:,0][i] >= 0.810198: # may have to adjust value based on above threshold value
+    if yre[:,0][i] >= 0.621361: # may have to adjust value based on above threshold value
         y_pred_r[i] = 1
     else:
         y_pred_r[i] = 0
         
 CrossValExt(y_pred_r)
-
 
 
 # Figure 1B
@@ -444,7 +509,6 @@ plt.ylabel('Sensitivity')
 plt.title('ROC Curves')
 plt.legend()
 plt.show()
-
 
 
 # combined Figures
