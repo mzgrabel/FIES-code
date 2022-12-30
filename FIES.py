@@ -12,6 +12,9 @@ from sklearn.neighbors import KNeighborsClassifier
 import seaborn as sns
 import tensorflow as tf
 import random
+import os
+
+os.chdir("C://Users//mzgra//Documents//Research2022")
 
 random.seed(10)
 # Data ------------------------------------------------------------------------
@@ -173,7 +176,7 @@ def Evaluate(model, y_pred):
     print("Precision:",metrics.precision_score(y_test, y_pred))
     print("Recall:",metrics.recall_score(y_test, y_pred))
 
-def ANNEvaluate(model, y_pred):
+def NNEvaluate(model, y_pred):
     def misclassificationrate(cm):
         error = cm[0,1] + cm[1,0]
         total = cm[0,0] + cm[0,1] + cm[1,0] + cm[1,1]
@@ -188,11 +191,27 @@ def ANNEvaluate(model, y_pred):
         spe = cm[1,1]/(cm[0,1]+cm[1,1])
         return spe
     
+    def OptimalCutoff(pred): # since NN predictions are probabilities we have to find the best cut off point to make those hard predictions
+        fpr, tpr, thresholds = metrics.roc_curve(y_test, pred)
+        i = np.arange(len(tpr)) # index for df
+        roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
+        roc_t = roc.iloc[(roc.tf-0).abs().argsort()[:1]]
+        
+        return list(roc_t['thresholds'])
+
+    c = OptimalCutoff(y_pred) 
+
+    y_pred_hard = np.zeros(len(y_pred))
+    for i in range(len(y_pred)):
+        if y_pred[[i]][0][0] >= c: # use hard cut off point to make prediction 1 if its larger or 0 if smaller
+            y_pred_hard[i] = 1
+        else:
+            y_pred_hard[i] = 0
+            
     # ROC Curve plot
     fig, ax = plt.subplots()
-    y_pred_proba = y_pred[::,1] #neural networks output the probabilities
-    fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
-    auc = metrics.roc_auc_score(y_test, y_pred_proba)  # AUC
+    fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred)
+    auc = metrics.roc_auc_score(y_test, y_pred)  # AUC
     plt.plot(fpr,tpr,label="FIES data, auc="+str(auc))
     plt.xlabel('1-Specificity')
     plt.ylabel('Sensitivity')
@@ -200,15 +219,7 @@ def ANNEvaluate(model, y_pred):
     plt.legend(loc=4)
     plt.show()
 
-    y_pred = np.argmax(y_pred, axis = 1)
-        
-    fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
-    i = np.arange(len(tpr)) # index for df
-    roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
-    roc.iloc[(roc.tf-0).abs().argsort()[:1]]['thresholds']
-    
-
-    cm = metrics.confusion_matrix(y_test, y_pred)
+    cm = metrics.confusion_matrix(y_test, y_pred_hard)
     cm        
     
     misclassificationrate(cm)
@@ -230,12 +241,13 @@ def ANNEvaluate(model, y_pred):
     plt.xlabel('Predicted label')
                 
     print('AUC', auc)
-    print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
+    print("Accuracy:",metrics.accuracy_score(y_test, y_pred_hard))
     print("Sensitivity", sen)
     print('Specificity', spe)
-    print("Precision:",metrics.precision_score(y_test, y_pred))
-    print("Recall:",metrics.recall_score(y_test, y_pred))
+    print("Precision:",metrics.precision_score(y_test, y_pred_hard))
+    print("Recall:",metrics.recall_score(y_test, y_pred_hard))
     
+    return y_pred_hard.astype(int)
 
 
 # -----------------------------------------------------------------------------
@@ -265,21 +277,18 @@ Evaluate(knn, y_pred_knn) # call evaluate function on these predictions
 
 
 # ANN
-y_train_onehot = tf.keras.utils.to_categorical(y_train)
 
 ann = tf.keras.models.Sequential()
-ann.add(tf.keras.layers.Dense(units=50, input_dim=X_train.shape[1], kernel_initializer = 'glorot_uniform', bias_initializer = 'zeros', activation = 'tanh'))
-ann.add(tf.keras.layers.Dense(units = 50, input_dim=50, kernel_initializer='glorot_uniform', bias_initializer='zeros', activation = 'tanh')) 
-ann.add(tf.keras.layers.Dense(units = y_train_onehot.shape[1], input_dim = 50, kernel_initializer = 'glorot_uniform', bias_initializer='zeros', activation = 'softmax'))
+ann.add(tf.keras.layers.Dense(units=50, input_dim=X_train.shape[1], kernel_initializer = 'glorot_uniform', bias_initializer = 'zeros', activation = 'relu'))
+ann.add(tf.keras.layers.Dense(units = 50, input_dim=50, kernel_initializer='glorot_uniform', bias_initializer='zeros', activation = 'relu')) 
+ann.add(tf.keras.layers.Dense(units = 1, input_dim = 50, kernel_initializer = 'glorot_uniform', bias_initializer='zeros', activation = 'sigmoid'))
 
-sgd_optimizer = tf.keras.optimizers.SGD(lr = 0.001, decay = 1e-7, momentum = 0.9)
+ann.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
-ann.compile(optimizer = sgd_optimizer, loss = 'categorical_crossentropy')
+ann.fit(X_train, y_train, batch_size = 64, epochs = 25, verbose=1, validation_split = 0.1)
+y_ppred_ann = ann.predict(X_test, verbose = 0)
 
-ann.fit(X_train, y_train_onehot, batch_size = 64, epochs = 25, verbose=1, validation_split = 0.1)
-y_pred_ann = ann.predict(X_test, verbose = 0)
-
-ANNEvaluate(ann, y_pred_ann) # call evaluate function on these predictions
+yya = NNEvaluate(ann, y_ppred_ann) # call evaluate function on these predictions
 
 # RNN -------------------------------------------------------------------------
 
@@ -309,15 +318,19 @@ preds = RNN.predict(X_test)
 preds
 
 # find best cut off point of probability for 0 or 1
-fpr, tpr, thresholds = metrics.roc_curve(y_test, preds)
-i = np.arange(len(tpr)) # index for df
-roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
-roc.iloc[(roc.tf-0).abs().argsort()[:1]]['thresholds']
+def OptimalCutoff(pred): # since NN predictions are probabilities we have to find the best cut off point to make those hard predictions
+    fpr, tpr, thresholds = metrics.roc_curve(y_test, pred)
+    i = np.arange(len(tpr)) # index for df
+    roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
+    roc_t = roc.iloc[(roc.tf-0).abs().argsort()[:1]]
+        
+    return list(roc_t['thresholds'])
 
+c = OptimalCutoff(preds)
 
 y_pred = np.zeros(len(preds))
 for i in range(len(preds)):
-    if preds[[i]][0][0] >= 0.628183: # may have to change the numeric value based on the threshold value above
+    if preds[[i]][0][0] >= c:
         y_pred[i] = 1
     else:
         y_pred[i] = 0
@@ -372,7 +385,7 @@ print("Recall:",metrics.recall_score(y_test, y_pred))
 
 def plotmetrics(model, y_pred):
     if model == ann:
-        y_pred_proba = y_pred[::,1]
+        y_pred_proba =  y_pred[:,0][:][:][:]
     elif model == RNN:
         y_pred_proba = y_pred[:,0][:][:][:]
     else:
@@ -381,10 +394,12 @@ def plotmetrics(model, y_pred):
     fpr, tpr, _ = metrics.roc_curve(y_test,  y_pred_proba)
     return fpr, tpr
 
-fprlr, tprlr = plotmetrics(lr, y_pred_rf)
+fprlr, tprlr = plotmetrics(lr, y_pred_lr)
 fprrf, tprrf = plotmetrics(forest, y_pred_rf)
 fprk, tprk = plotmetrics(knn, y_pred_knn)
-fpra, tpra = plotmetrics(ann, y_pred_ann)
+
+fpra, tpra = plotmetrics(ann, y_ppred_ann)
+
 fprr, tprr = plotmetrics(RNN, preds)
 
 
@@ -399,6 +414,43 @@ plt.ylabel('Sensitivity')
 plt.title('ROC Curves')
 plt.legend()
 plt.show()
+
+Xlr = pd.DataFrame(fprlr, columns = ['Xlr'])
+Ylr = pd.DataFrame(tprlr, columns = ['Ylr'])
+
+lr = pd.concat([Xlr, Ylr], axis= 1)
+
+Xrf = pd.DataFrame(fprrf, columns = ['Xrf'])
+Yrf = pd.DataFrame(tprrf, columns = ['Yrf'])
+
+rf = pd.concat([Xrf, Yrf], axis = 1)
+
+Xk = pd.DataFrame(fprk, columns = ['Xk'])
+Yk = pd.DataFrame(tprk, columns = ['Yk'])
+
+k = pd.concat([Xk, Yk], axis = 1)
+
+Xa = pd.DataFrame(fpra, columns = ['Xa'])
+Ya = pd.DataFrame(tpra, columns = ['Ya'])
+
+a = pd.concat([Xa, Ya], axis = 1)
+
+Xr = pd.DataFrame(fprr, columns = ['Xr'])
+Yr = pd.DataFrame(tprr, columns = ['Yr'])
+
+r = pd.concat([Xr, Yr], axis = 1)
+
+# lr.to_excel("DevelopmentLR.xlsx")
+
+# rf.to_excel("DevelopmentRF.xlsx")
+
+# k.to_excel("DevelopmentKNN.xlsx")
+
+# a.to_excel("DevelopmentANN.xlsx")
+
+# r.to_excel("DevelopmentRNN.xlsx")
+
+
 
 
 # External Cross Validation ---------------------------------------------------
@@ -451,15 +503,19 @@ CrossValExt(ke)
 
 yae = ann.predict(XB)
 
-# get best cut off value from probabilities 
-fpr, tpr, thresholds = metrics.roc_curve(yB, yae[:,0])
-i = np.arange(len(tpr)) # index for df
-roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
-roc.iloc[(roc.tf-0).abs().argsort()[:1]]
+def OptimalCutoff(pred): # since NN predictions are probabilities we have to find the best cut off point to make those hard predictions
+    fpr, tpr, thresholds = metrics.roc_curve(yB, pred)
+    i = np.arange(len(tpr)) # index for df
+    roc = pd.DataFrame({'fpr' : pd.Series(fpr, index=i),'tpr' : pd.Series(tpr, index = i), '1-fpr' : pd.Series(1-fpr, index = i), 'tf' : pd.Series(tpr - (1-fpr), index = i), 'thresholds' : pd.Series(thresholds, index = i)})
+    roc_t = roc.iloc[(roc.tf-0).abs().argsort()[:1]]
+        
+    return list(roc_t['thresholds'])
+
+c = OptimalCutoff(yae)
 
 y_pred_a = np.zeros(len(yae[:,0]))
 for i in range(len(yae[:,0])):
-    if yae[:,0][i] >= 0.343799: # may have to adjust value based on above threshold value
+    if yae[:,0][i] >= c: # may have to adjust value based on above threshold value
         y_pred_a[i] = 1
     else:
         y_pred_a[i] = 0
@@ -478,7 +534,7 @@ roc.iloc[(roc.tf-0).abs().argsort()[:1]]
 
 y_pred_r = np.zeros(len(yre[:,0]))
 for i in range(len(yre[:,0])):
-    if yre[:,0][i] >= 0.621361: # may have to adjust value based on above threshold value
+    if yre[:,0][i] >= 0.652501: # may have to adjust value based on above threshold value
         y_pred_r[i] = 1
     else:
         y_pred_r[i] = 0
@@ -509,6 +565,45 @@ plt.ylabel('Sensitivity')
 plt.title('ROC Curves')
 plt.legend()
 plt.show()
+
+
+Xlre = pd.DataFrame(fprlre, columns = ['Xlr'])
+Ylre = pd.DataFrame(tprlre, columns = ['Ylr'])
+
+lre = pd.concat([Xlre, Ylre], axis= 1)
+
+Xrfe = pd.DataFrame(fprrfe, columns = ['Xrf'])
+Yrfe = pd.DataFrame(tprrfe, columns = ['Yrf'])
+
+rfe = pd.concat([Xrfe, Yrfe], axis = 1)
+
+Xke = pd.DataFrame(fprke, columns = ['Xk'])
+Yke = pd.DataFrame(tprke, columns = ['Yk'])
+
+kne = pd.concat([Xke, Yke], axis = 1)
+
+Xae = pd.DataFrame(fprae, columns = ['Xa'])
+Yae = pd.DataFrame(tprae, columns = ['Ya'])
+
+ae = pd.concat([Xae, Yae], axis = 1)
+
+Xre = pd.DataFrame(fprre, columns = ['Xr'])
+Yre = pd.DataFrame(tprre, columns = ['Yr'])
+
+re = pd.concat([Xre, Yre], axis = 1)
+
+# lre.to_excel("ValidationLR.xlsx")
+
+# rfe.to_excel("ValidationRF.xlsx")
+
+# kne.to_excel("ValidationKNN.xlsx")
+
+# ae.to_excel("ValidationANN.xlsx")
+
+# re.to_excel("ValidationRNN.xlsx")
+
+
+
 
 
 # combined Figures
