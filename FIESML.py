@@ -50,7 +50,7 @@ def Evaluate(model, y_pred):
         return sen
     
     def Specificity(cm): # Specificity TN/(TN+FP)
-        spe = cm[1,1]/(cm[0,1]+cm[1,1])
+        spe = cm[1,1]/(cm[1,0]+cm[1,1])
         return spe
     
     # ROC Curve plot
@@ -287,7 +287,7 @@ def Sensitivity(cm):
     return sen
     
 def Specificity(cm):
-    spe = cm[1,1]/(cm[0,1]+cm[1,1])
+    spe = cm[1,1]/(cm[1,0]+cm[1,1])
     return spe
     
 mr = misclassificationrate(cm)
